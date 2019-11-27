@@ -1,14 +1,9 @@
-#using Multiplexers
+using Multiplexers
 using Sockets
 
-import Multiplexers
-import Multiplexers: Line, route
-
-# serialize(io::Line,msg) = Multiplexers.serialize(io,msg)
-# deserialize(io::Line) = Multiplexers.deserialize(io)
-import Multiplexers: serialize, deserialize
-
 import Serialization
+
+import Multiplexers: serialize, deserialize
 serialize(io::Union{TCPSocket,IOBuffer},msg) = Serialization.serialize(io,msg)
 deserialize(io::Union{TCPSocket,IOBuffer}) = Serialization.deserialize(io)
 

@@ -3,7 +3,13 @@ module Multiplexers
 struct Line <: IO
     socket::IO
     ch::Channel
-    n
+    n::Integer
+    
+    function Line(socket,ch,n)
+        @assert hasmethod(serialize,(typeof(socket),Any))
+        @assert hasmethod(deserialize,(typeof(socket),))
+        new(socket,ch,n)
+    end
 end
 
 Line(socket,n) = Line(socket,Channel(),n)
