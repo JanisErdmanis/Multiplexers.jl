@@ -33,16 +33,33 @@ function route(lines::Vector{Line},socket::IO)
     end
 end
 
+
+### Some high end interface
+struct Multiplexer{T<:IO} 
+    socket::IO
+    lines::Vector{T}
+end
+
+
+# mux = Multiplexer(secureserversocket,N)
+# task = @async route(mux)
+# lines[i] -> mux.lines[i]
+Multiplexer(socket::IO,N::Integer) = Multiplexer(socket,Line[Line(socket,i) for i in 1:N])
+route(mux::Multiplexer) = route(mux.lines,mux.socket)
+
+# forwarding the connection is what I need. 
+
+
 """
 A function which one uses to forward forward traffic from multiple sockets into one socket by multiplexing.
 """
-function route(ios::Vector{IO},socket::IO)
-    lines = [Line(socket,i) for i in 1:length(ios)]
-    task = @async route(lines,socket)
+function forward(ios::Vector{IO},socket::IO)
+    mux = Multiplexer(socket,length(ios))
+    task = @async route(mux)
     
     tasks = []
 
-    for (line,io) in zip(lines,ios)
+    for (line,io) in zip(mux.lines,ios)
         task1 = @async while true
             msg = deserialize(line)
             serialize(io,msg)
@@ -57,11 +74,13 @@ function route(ios::Vector{IO},socket::IO)
     end
 
     wait(task)
+    deserialize(socket)==:Terminate
+
     for t in tasks
         @async Base.throwto(t,InterruptException()) 
     end
 end
 
-export Line, route, serialize, deserialize
+export Line, route, serialize, deserialize, forward, Multiplexer
 
 end # module
