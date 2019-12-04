@@ -13,11 +13,11 @@ N = 1
         server = listen(2014)
         try
             socket = accept(server)
-            lines = [Line(socket,i) for i in 1:N]
+            mux = Multiplexer(socket,N)
 
-            task = @async route(lines,socket)
+            task = @async route(mux)
 
-            serialize(lines[1],"Hello World")
+            serialize(mux.lines[1],"Hello World")
 
             serialize(socket,:Terminate)
             wait(task)
@@ -28,11 +28,10 @@ N = 1
 
     @async let
         socket = connect(2014)
-        lines = [Line(socket,i) for i in 1:N]
+        mux = Multiplexer(socket,N)
 
-        task = @async route(lines,socket)
-        @show deserialize(lines[1])
-        #serialize(socket,:Terminate)
+        task = @async route(mux)
+        @show deserialize(mux.lines[1])
         wait(task)
     end
 end
