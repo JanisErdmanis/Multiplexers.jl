@@ -15,12 +15,13 @@ N = 1
             socket = accept(server)
             mux = Multiplexer(socket,N)
 
-            task = @async route(mux)
-
             serialize(mux.lines[1],"Hello World")
 
-            serialize(socket,:Terminate)
-            wait(task)
+            # Testing asynchronous conection
+            @async serialize(mux.lines[1],"Hello from here")
+            @show deserialize(mux.lines[1])
+
+            close(mux)
         finally
             close(server)
         end
@@ -30,9 +31,12 @@ N = 1
         socket = connect(2014)
         mux = Multiplexer(socket,N)
 
-        task = @async route(mux)
         @show deserialize(mux.lines[1])
-        wait(task)
+
+        @async serialize(mux.lines[1],"Hello from there")
+        @show deserialize(mux.lines[1])
+
+        wait(mux)
     end
 end
 

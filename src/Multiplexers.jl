@@ -38,14 +38,32 @@ end
 struct Multiplexer{T<:IO} 
     socket::IO
     lines::Vector{T}
+    daemon::Task
 end
 
 
 # mux = Multiplexer(secureserversocket,N)
 # task = @async route(mux)
 # lines[i] -> mux.lines[i]
-Multiplexer(socket::IO,N::Integer) = Multiplexer(socket,Line[Line(socket,i) for i in 1:N])
-route(mux::Multiplexer) = route(mux.lines,mux.socket)
+function Multiplexer(socket::IO,N::Integer)
+    lines = Line[Line(socket,i) for i in 1:N]
+    daemon = @async route(lines,socket)
+    Multiplexer(socket,lines,daemon)
+end
+
+import Base.wait
+wait(mux::Multiplexer) = wait(mux.daemon)
+
+import Base.close
+function close(mux::Multiplexer)
+    serialize(mux.socket,:Terminate)
+    wait(mux)
+end
+
+
+# I could extend Base.write and Base.take!?
+
+#route(mux::Multiplexer) = route(mux.lines,mux.socket)
 
 # forwarding the connection is what I need. 
 
@@ -55,7 +73,7 @@ A function which one uses to forward forward traffic from multiple sockets into 
 """
 function forward(ios::Vector{IO},socket::IO)
     mux = Multiplexer(socket,length(ios))
-    task = @async route(mux)
+    #task = @async route(mux)
     
     tasks = []
 
@@ -73,7 +91,8 @@ function forward(ios::Vector{IO},socket::IO)
         push!(tasks,task2)
     end
 
-    wait(task)
+    #wait(task)
+    wait(mux)
     deserialize(socket)==:Terminate
 
     for t in tasks
@@ -81,6 +100,12 @@ function forward(ios::Vector{IO},socket::IO)
     end
 end
 
-export Line, route, serialize, deserialize, forward, Multiplexer
+function Multiplexer(socket::IO,ios::Vector{IO})
+    daemon = @async forward(ios,socket)
+    Multiplexer(socket,ios,daemon)
+end
+
+#export Line, route, serialize, deserialize, forward, Multiplexer
+export Multiplexer, Line, serialize, deserialize
 
 end # module
