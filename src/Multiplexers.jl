@@ -1,5 +1,8 @@
 module Multiplexers
 
+# I could extend Base.write and Base.read?
+# Would be great to work on byte level.
+
 struct Line <: IO
     socket::IO
     ch::Channel
@@ -33,7 +36,6 @@ function route(lines::Vector{Line},socket::IO)
     end
 end
 
-
 ### Some high end interface
 struct Multiplexer{T<:IO} 
     socket::IO
@@ -41,10 +43,6 @@ struct Multiplexer{T<:IO}
     daemon::Task
 end
 
-
-# mux = Multiplexer(secureserversocket,N)
-# task = @async route(mux)
-# lines[i] -> mux.lines[i]
 function Multiplexer(socket::IO,N::Integer)
     lines = Line[Line(socket,i) for i in 1:N]
     daemon = @async route(lines,socket)
@@ -61,19 +59,11 @@ function close(mux::Multiplexer)
 end
 
 
-# I could extend Base.write and Base.take!?
-
-#route(mux::Multiplexer) = route(mux.lines,mux.socket)
-
-# forwarding the connection is what I need. 
-
-
 """
 A function which one uses to forward forward traffic from multiple sockets into one socket by multiplexing.
 """
 function forward(ios::Vector{IO},socket::IO)
     mux = Multiplexer(socket,length(ios))
-    #task = @async route(mux)
     
     tasks = []
 
@@ -91,7 +81,6 @@ function forward(ios::Vector{IO},socket::IO)
         push!(tasks,task2)
     end
 
-    #wait(task)
     wait(mux)
     deserialize(socket)==:Terminate
 
@@ -105,7 +94,6 @@ function Multiplexer(socket::IO,ios::Vector{IO})
     Multiplexer(socket,ios,daemon)
 end
 
-#export Line, route, serialize, deserialize, forward, Multiplexer
 export Multiplexer, Line, serialize, deserialize
 
 end # module

@@ -1,7 +1,7 @@
 name = "Multiplexers"
 uuid = "d8f48be2-8af9-45f0-b400-11a6372d221d"
 authors = ["akels <akels14@gmail.com>"]
-version = "0.2.0"
+version = "0.3.0"
 
 [compat]
 julia = "1.3"
