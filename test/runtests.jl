@@ -1,11 +1,6 @@
 using Multiplexers
 using Sockets
-
-import Serialization
-
-import Multiplexers: serialize, deserialize
-serialize(io::Union{TCPSocket,IOBuffer},msg) = Serialization.serialize(io,msg)
-deserialize(io::Union{TCPSocket,IOBuffer}) = Serialization.deserialize(io)
+using Serialization
 
 N = 1
 @sync begin
@@ -15,11 +10,15 @@ N = 1
             socket = accept(server)
             mux = Multiplexer(socket,N)
 
-            serialize(mux.lines[1],"Hello World")
+            #serialize(mux.lines[1],"Hello World")
+            write(mux.lines[1],"Hello World")
 
             # Testing asynchronous conection
-            @async serialize(mux.lines[1],"Hello from here")
-            @show deserialize(mux.lines[1])
+            @async write(mux.lines[1],"Hello from here")
+            @show String(readavailable(mux.lines[1]))
+
+            # Tesing Serializer
+            serialize(mux.lines[1],"from serializer")
 
             close(mux)
         finally
@@ -30,10 +29,13 @@ N = 1
     @async let
         socket = connect(2014)
         mux = Multiplexer(socket,N)
+        
+        @show String(readavailable(mux.lines[1]))
 
-        @show deserialize(mux.lines[1])
+        @async write(mux.lines[1],"Hello from there")
+        @show String(readavailable(mux.lines[1]))
 
-        @async serialize(mux.lines[1],"Hello from there")
+        # Testing serializer
         @show deserialize(mux.lines[1])
 
         wait(mux)

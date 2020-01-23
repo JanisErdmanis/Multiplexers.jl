@@ -1,24 +1,62 @@
 module Multiplexers
 
-# I could extend Base.write and Base.read?
-# Would be great to work on byte level.
+using Serialization
 
-struct Line <: IO
-    socket::IO
-    ch::Channel
-    n::Integer
-    
-    function Line(socket,ch,n)
-        @assert hasmethod(serialize,(typeof(socket),Any))
-        @assert hasmethod(deserialize,(typeof(socket),))
-        new(socket,ch,n)
+import Base.sync_varname
+import Base.@async
+
+macro async(expr)
+
+    tryexpr = quote
+        try
+            $expr
+        catch err
+            @warn "error within async" exception=err # line $(__source__.line):
+        end
+    end
+
+    thunk = esc(:(()->($tryexpr)))
+
+    var = esc(sync_varname)
+    quote
+        local task = Task($thunk)
+        if $(Expr(:isdefined, var))
+            push!($var, task)
+        end
+        schedule(task)
+        task
     end
 end
 
-Line(socket,n) = Line(socket,Channel(),n)
 
-serialize(line::Line,msg) = serialize(line.socket,(line.n,msg))
-deserialize(line::Line) = take!(line.ch)
+# I could extend Base.write and Base.read?
+# Would be great to work on byte level.
+
+mutable struct Line <: IO
+    socket::IO
+    ch::Channel{UInt8}
+    n::Integer
+end
+
+Line(socket,n) = Line(socket,Channel{UInt8}(Inf),n)
+
+import Base.write
+write(line::Line,msg::UInt8) = serialize(line.socket,(line.n,msg))
+write(line::Line,msg::String) = serialize(line.socket,(line.n,msg))
+write(line::Line,msg::Vector{UInt8}) = serialize(line.socket,(line.n,msg))
+
+import Base.read
+read(line::Line,x::Type{UInt8}) = take!(line.ch)
+
+import Base.readavailable
+function readavailable(line::Line) 
+    wait(line.ch)
+    s = UInt8[]
+    while isready(line.ch)
+        push!(s,take!(line.ch))
+    end
+    return s #[end:-1:1]
+end
 
 """
 Takes multiple input lines and routes them to a single line.
@@ -31,7 +69,15 @@ function route(lines::Vector{Line},socket::IO)
             return
         else
             n,msg = data
-            put!(lines[n].ch,msg)
+            
+            if typeof(msg)==UInt8
+                put!(lines[n].ch,msg)
+            else
+                bmsg = take!(IOBuffer(msg))
+                for byte in bmsg #[end:-1:1]
+                    put!(lines[n].ch,byte)
+                end
+            end
         end
     end
 end
@@ -94,6 +140,6 @@ function Multiplexer(socket::IO,ios::Vector{IO})
     Multiplexer(socket,ios,daemon)
 end
 
-export Multiplexer, Line, serialize, deserialize
+export Multiplexer, Line, read, readavailable, write #serialize, deserialize
 
 end # module
