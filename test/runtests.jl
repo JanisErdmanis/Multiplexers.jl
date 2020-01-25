@@ -10,15 +10,13 @@ N = 1
             socket = accept(server)
             mux = Multiplexer(socket,N)
 
-            #serialize(mux.lines[1],"Hello World")
-            write(mux.lines[1],"Hello World")
-
-            # Testing asynchronous conection
-            @async write(mux.lines[1],"Hello from here")
-            @show String(readavailable(mux.lines[1]))
-
             # Tesing Serializer
             serialize(mux.lines[1],"from serializer")
+            @show deserialize(mux.lines[1])
+
+            # Testing asynchronous conection
+            @async serialize(mux.lines[1],"Hello from here")
+            @show deserialize(mux.lines[1])
 
             close(mux)
         finally
@@ -29,13 +27,13 @@ N = 1
     @async let
         socket = connect(2014)
         mux = Multiplexer(socket,N)
-        
-        @show String(readavailable(mux.lines[1]))
-
-        @async write(mux.lines[1],"Hello from there")
-        @show String(readavailable(mux.lines[1]))
 
         # Testing serializer
+        @show deserialize(mux.lines[1])
+        serialize(mux.lines[1],"HEllo")
+
+        # Testing asynchronous conection
+        @async serialize(mux.lines[1],"Hello from there")
         @show deserialize(mux.lines[1])
 
         wait(mux)
