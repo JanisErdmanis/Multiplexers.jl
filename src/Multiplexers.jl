@@ -27,32 +27,6 @@ function unstack(io::IOBuffer)
     return msg
 end
 
-# import Base.sync_varname
-# import Base.@async
-
-# macro async(expr)
-
-#     tryexpr = quote
-#         try
-#             $expr
-#         catch err
-#             @warn "error within async" exception=err # line $(__source__.line):
-#         end
-#     end
-
-#     thunk = esc(:(()->($tryexpr)))
-
-#     var = esc(sync_varname)
-#     quote
-#         local task = Task($thunk)
-#         if $(Expr(:isdefined, var))
-#             push!($var, task)
-#         end
-#         schedule(task)
-#         task
-#     end
-# end
-
 struct Line <: IO
     socket::IO
     ch::Channel{UInt8}
@@ -139,7 +113,9 @@ function forward(ios::Vector{IO},socket::IO)
     end
 
     wait(mux)
-    @assert unstack(socket)==UInt8[0]
+    
+    byte = unstack(socket)
+    @assert byte==UInt8[0] "$byte is not a termination byte"
 
     for t in tasks
         @async Base.throwto(t,InterruptException()) 
